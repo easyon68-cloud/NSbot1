@@ -1,13 +1,13 @@
 import streamlit as st
-import openai
+from openai import OpenAI
 
-# Initialize OpenAI with your secret API key
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+# Initialize OpenAI client
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # Set the app title
 st.title("🛠️ Network and Server Troubleshoot")
 
-# Initialize chat history with a system prompt focused on IT troubleshooting
+# Initialize chat history with a system prompt
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {
@@ -24,41 +24,56 @@ if "messages" not in st.session_state:
         }
     ]
 
-# Display all previous messages (excluding system prompt)
+# Display previous messages (excluding system prompt)
 for msg in st.session_state.messages[1:]:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# User input
+# File upload section
+uploaded_file = st.file_uploader("📁 Upload a log file for analysis", type=["txt", "log", "csv"])
+if uploaded_file:
+    file_content = uploaded_file.read().decode("utf-8")
+    st.text_area("📄 Log File Content", file_content, height=200)
+
+    # Ask GPT to summarize the log
+    summary_prompt = f"Please analyze and summarize the following troubleshooting log:\n\n{file_content}"
+    summary_response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant that analyzes server and network logs."},
+            {"role": "user", "content": summary_prompt}
+        ]
+    )
+    st.subheader("🧾 Log Summary")
+    st.write(summary_response.choices[0].message.content)
+
+# Chat input
 user_input = st.chat_input("Describe your network or server issue...")
 
 # Function to get AI response
 def get_response(messages):
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=messages
     )
-    return response.choices[0].message["content"]
+    return response.choices[0].message.content
 
-# Process user input
+# Handle user input
 if user_input:
-    # Add user's message to history and show
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
         st.markdown(user_input)
 
-    # Get AI response
     response = get_response(st.session_state.messages)
-
-    # Add assistant response to history and show
     st.session_state.messages.append({"role": "assistant", "content": response})
     with st.chat_message("assistant"):
         st.markdown(response)
 
-# Optional: Add footer disclaimer
+# Footer disclaimer
 st.markdown("---")
 st.markdown(
     "⚠️ **Disclaimer:** This chatbot does not provide certified IT support or emergency services. "
     "Always consult your IT administrator or support team for critical infrastructure issues.",
     unsafe_allow_html=True
 )
+``

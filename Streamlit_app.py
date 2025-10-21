@@ -76,4 +76,3 @@ st.markdown(
     "Always consult your IT administrator or support team for critical infrastructure issues.",
     unsafe_allow_html=True
 )
-``
